@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Counter with History</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #bae6fd 100%);
+            min-height: 100vh;
+        }
+        .person-card {
+            transition: all 0.3s ease;
+            background: linear-gradient(to bottom right, white 0%, #f0f9ff 100%);
+        }
+        .person-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(33, 150, 243, 0.2);
+        }
+        .history-item {
+            animation: fadeIn 0.5s ease-out;
+            background: linear-gradient(to right, white 0%, #f8fafc 100%);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .header-gradient {
+            background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold header-gradient mb-2">Daily Counter</h1>
+            <p class="text-blue-600">Click on a person to increment their count for today</p>
+            <div class="mt-4 bg-white rounded-lg shadow-md inline-block px-4 py-2 border border-blue-100">
+                <span class="font-semibold text-blue-700">Today's Date:</span>
+                <span id="current-date" class="ml-2 text-blue-600 font-medium"></span>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+            <!-- Person cards will be dynamically added here -->
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8 border border-blue-50">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-blue-800">Daily History</h2>
+                <button id="clear-history" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-100 transition border border-blue-200">
+                    <i class="fas fa-trash mr-2"></i>Clear All History
+                </button>
+            </div>
+            <div id="history-container" class="space-y-3">
+                <!-- History items will be added here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize people data with requested names
+            const people = [
+                { id: 1, name: 'Kodir', color: 'bg-blue-100', textColor: 'text-blue-800' },
+                { id: 2, name: 'Alip', color: 'bg-cyan-100', textColor: 'text-cyan-800' },
+                { id: 3, name: 'Jundi', color: 'bg-sky-100', textColor: 'text-sky-800' },
+                { id: 4, name: 'Lesmana', color: 'bg-indigo-100', textColor: 'text-indigo-800' },
+                { id: 5, name: 'Sahli', color: 'bg-teal-100', textColor: 'text-teal-800' }
+            ];
+
+            // Get current date in YYYY-MM-DD format
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('current-date').textContent = today;
+
+            // Check if we need to reset counts for a new day
+            checkForNewDay();
+
+            // Initialize the app
+            initializeApp();
+
+            // Function to check if we need to reset counts for a new day
+            function checkForNewDay() {
+                const lastUpdated = localStorage.getItem('lastUpdated');
+                
+                if (lastUpdated && lastUpdated !== today) {
+                    // It's a new day, save yesterday's counts to history
+                    saveToHistory(lastUpdated);
+                    
+                    // Reset all counts for the new day
+                    people.forEach(person => {
+                        localStorage.setItem(`count_${person.id}`, '0');
+                    });
+                }
+                
+                // Update lastUpdated to today
+                localStorage.setItem('lastUpdated', today);
+            }
+
+            // Function to save current counts to history
+            function saveToHistory(date) {
+                const counts = people.map(person => {
+                    return parseInt(localStorage.getItem(`count_${person.id}`) || '0');
+                });
+                
+                // Get existing history
+                const history = JSON.parse(localStorage.getItem('history') || '[]');
+                
+                // Add new entry
+                history.push({ date, counts });
+                
+                // Save back to localStorage
+                localStorage.setItem('history', JSON.stringify(history));
+            }
+
+            // Function to initialize the app
+            function initializeApp() {
+                const peopleContainer = document.querySelector('.grid');
+                
+                // Create person cards
+                people.forEach(person => {
+                    const count = parseInt(localStorage.getItem(`count_${person.id}`) || '0');
+                    
+                    const card = document.createElement('div');
+                    card.className = `person-card ${person.color} rounded-xl shadow-md p-6 text-center cursor-pointer hover:shadow-lg relative border border-blue-100`;
+                    card.dataset.id = person.id;
+                    
+                    card.innerHTML = `
+                        <h3 class="text-xl font-semibold mb-4 ${person.textColor}">${person.name}</h3>
+                        <div class="text-5xl font-bold mb-6 ${person.textColor}">${count}</div>
+                        <button class="reset-btn absolute top-2 right-2 bg-white rounded-full p-1 text-gray-400 hover:text-blue-600 transition border border-blue-200">
+                            <i class="fas fa-redo text-xs"></i>
+                        </button>
+                    `;
+                    
+                    peopleContainer.appendChild(card);
+                });
+                
+                // Add click event to person cards
+                document.querySelectorAll('.person-card').forEach(card => {
+                    card.addEventListener('click', function() {
+                        const personId = this.dataset.id;
+                        incrementCount(personId);
+                    });
+                });
+                
+                // Add click event to reset buttons
+                document.querySelectorAll('.reset-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation(); // Prevent card click event
+                        const card = this.closest('.person-card');
+                        const personId = card.dataset.id;
+                        resetCount(personId);
+                    });
+                });
+                
+                // Load and display history
+                loadHistory();
+                
+                // Add event listener for clear history button
+                document.getElementById('clear-history').addEventListener('click', clearHistory);
+            }
+
+            // Function to increment count for a person
+            function incrementCount(personId) {
+                const currentCount = parseInt(localStorage.getItem(`count_${personId}`) || '0');
+                const newCount = currentCount + 1;
+                
+                localStorage.setItem(`count_${personId}`, newCount.toString());
+                
+                // Update the UI
+                const card = document.querySelector(`.person-card[data-id="${personId}"]`);
+                const countElement = card.querySelector('div');
+                countElement.textContent = newCount;
+                
+                // Add animation
+                countElement.classList.add('animate-bounce');
+                setTimeout(() => {
+                    countElement.classList.remove('animate-bounce');
+                }, 500);
+            }
+
+            // Function to reset count for a single person
+            function resetCount(personId) {
+                if (confirm('Are you sure you want to reset this count for today?')) {
+                    localStorage.setItem(`count_${personId}`, '0');
+                    
+                    // Update the UI
+                    const card = document.querySelector(`.person-card[data-id="${personId}"]`);
+                    const countElement = card.querySelector('div');
+                    countElement.textContent = '0';
+                    
+                    // Add animation
+                    countElement.classList.add('animate-pulse');
+                    setTimeout(() => {
+                        countElement.classList.remove('animate-pulse');
+                    }, 500);
+                }
+            }
+
+            // Function to load and display history
+            function loadHistory() {
+                const historyContainer = document.getElementById('history-container');
+                historyContainer.innerHTML = '';
+                
+                const history = JSON.parse(localStorage.getItem('history') || '[]');
+                
+                if (history.length === 0) {
+                    historyContainer.innerHTML = '<p class="text-blue-400 italic">No history yet</p>';
+                    return;
+                }
+                
+                // Display history in reverse order (newest first)
+                history.reverse().forEach(entry => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item p-4 rounded-lg border border-blue-100';
+                    
+                    // Format counts with person names
+                    const countsWithNames = entry.counts.map((count, index) => {
+                        return `<span class="font-medium ${people[index].textColor}">${people[index].name}: ${count}</span>`;
+                    }).join(', ');
+                    
+                    historyItem.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold text-blue-700">${entry.date}</span>
+                            <div class="text-sm space-x-2">
+                                ${countsWithNames}
+                            </div>
+                        </div>
+                    `;
+                    
+                    historyContainer.appendChild(historyItem);
+                });
+            }
+
+            // Function to clear all history
+            function clearHistory() {
+                if (confirm('Are you sure you want to clear ALL history? This cannot be undone.')) {
+                    localStorage.removeItem('history');
+                    loadHistory();
+                }
+            }
+
+            // Listen for storage events to sync across tabs/devices
+            window.addEventListener('storage', function(e) {
+                if (e.key && e.key.startsWith('count_')) {
+                    const personId = e.key.split('_')[1];
+                    const card = document.querySelector(`.person-card[data-id="${personId}"]`);
+                    if (card) {
+                        const countElement = card.querySelector('div');
+                        countElement.textContent = e.newValue;
+                    }
+                } else if (e.key === 'history') {
+                    loadHistory();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
